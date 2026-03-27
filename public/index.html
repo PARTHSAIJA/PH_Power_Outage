@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PH Power Outage Tracker</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <!-- Leaflet MarkerCluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" crossorigin="" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">PH Outage Tracker</span>
+      </div>
+      <div class="tagline">Real-time crowd-sourced power outage map</div>
+    </div>
+    <div class="header-right">
+      <div class="stat-pill" id="stat-active">
+        <span class="stat-num" id="active-count">—</span>
+        <span class="stat-label">Active Reports</span>
+      </div>
+      <div class="stat-pill" id="stat-refresh">
+        <span class="stat-num" id="last-updated">—</span>
+        <span class="stat-label">Last Updated</span>
+      </div>
+      <button class="btn btn-primary" id="report-btn">
+        + Report Outage
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN LAYOUT -->
+  <main class="main-layout">
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-tabs">
+        <button class="tab-btn active" data-tab="feed">Live Feed</button>
+        <button class="tab-btn" data-tab="stats">By Region</button>
+      </div>
+
+      <!-- FEED TAB -->
+      <div class="tab-content active" id="tab-feed">
+        <div class="feed-header">
+          <span class="feed-count" id="feed-count">Loading...</span>
+          <button class="refresh-btn" id="refresh-btn" title="Refresh">↻</button>
+        </div>
+        <div class="outage-list" id="outage-list">
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading outages...</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- STATS TAB -->
+      <div class="tab-content" id="tab-stats">
+        <div class="stats-container" id="stats-container">
+          <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>Loading stats...</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAP -->
+    <div class="map-container">
+      <div id="map"></div>
+      <div class="map-legend">
+        <div class="legend-title">Legend</div>
+        <div class="legend-item">
+          <span class="legend-dot dot-unplanned"></span> Unplanned Outage
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot dot-planned"></span> Planned Interruption
+        </div>
+        <div class="legend-item legend-note">
+          Darker = more confirmations
+        </div>
+      </div>
+      <div class="map-hint" id="map-hint">
+        Click anywhere on the map to report an outage at that location
+      </div>
+    </div>
+  </main>
+
+  <!-- REPORT MODAL -->
+  <div class="modal-overlay" id="modal-overlay" hidden>
+    <div class="modal" id="report-modal">
+      <div class="modal-header">
+        <h2>Report a Power Outage</h2>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="location-preview" id="location-preview">
+          <div class="location-icon">📍</div>
+          <div class="location-text">
+            <div class="location-coords" id="preview-coords">Click map to set location</div>
+            <div class="location-place" id="preview-place">—</div>
+          </div>
+        </div>
+
+        <form id="report-form">
+          <div class="form-group">
+            <label for="f-region">Region <span class="required">*</span></label>
+            <select id="f-region" required>
+              <option value="">Select region...</option>
+              <option value="NCR">NCR – National Capital Region</option>
+              <option value="CAR">CAR – Cordillera Administrative Region</option>
+              <option value="Region I">Region I – Ilocos Region</option>
+              <option value="Region II">Region II – Cagayan Valley</option>
+              <option value="Region III">Region III – Central Luzon</option>
+              <option value="Region IV-A">Region IV-A – CALABARZON</option>
+              <option value="Region IV-B">Region IV-B – MIMAROPA</option>
+              <option value="Region V">Region V – Bicol Region</option>
+              <option value="Region VI">Region VI – Western Visayas</option>
+              <option value="Region VII">Region VII – Central Visayas</option>
+              <option value="Region VIII">Region VIII – Eastern Visayas</option>
+              <option value="Region IX">Region IX – Zamboanga Peninsula</option>
+              <option value="Region X">Region X – Northern Mindanao</option>
+              <option value="Region XI">Region XI – Davao Region</option>
+              <option value="Region XII">Region XII – SOCCSKSARGEN</option>
+              <option value="Region XIII">Region XIII – Caraga</option>
+              <option value="BARMM">BARMM – Bangsamoro</option>
+              <option value="Unknown">Unknown / Not sure</option>
+            </select>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="f-province">Province</label>
+              <input type="text" id="f-province" placeholder="e.g. Quezon City" maxlength="100" />
+            </div>
+            <div class="form-group">
+              <label for="f-city">City / Municipality</label>
+              <input type="text" id="f-city" placeholder="e.g. Caloocan" maxlength="100" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="f-barangay">Barangay</label>
+            <input type="text" id="f-barangay" placeholder="e.g. Barangay 123" maxlength="100" />
+          </div>
+
+          <div class="form-group">
+            <label>Type</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="type" value="unplanned" checked />
+                <span>Unplanned / Emergency</span>
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="type" value="planned" />
+                <span>Planned / Scheduled</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="f-desc">Description <span class="optional">(optional)</span></label>
+            <textarea id="f-desc" placeholder="Any additional details (e.g. whole street is out, flickering, ETR if known...)" maxlength="500" rows="3"></textarea>
+            <div class="char-count"><span id="char-count">0</span>/500</div>
+          </div>
+
+          <div class="form-notice">
+            Your IP address is anonymized. Reports expire automatically after 6 hours.
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" id="form-cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="form-submit">Submit Report</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- OUTAGE DETAIL PANEL -->
+  <div class="detail-panel" id="detail-panel" hidden>
+    <button class="detail-close" id="detail-close">&times;</button>
+    <div class="detail-content" id="detail-content"></div>
+  </div>
+
+  <!-- TOAST NOTIFICATIONS -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js" crossorigin=""></script>
+  <script src="app.js"></script>
+</body>
+</html>
