@@ -125,9 +125,23 @@ async function apiPost(path, body) {
   return data;
 }
 
+// ─── SOURCE HELPERS ──────────────────────────────────────────────────────────
+const SOURCE_META = {
+  crowdsourced:  { label: 'Community', color: '#7b82a0', icon: '👥' },
+  meralco:       { label: 'Meralco',   color: '#f59e0b', icon: '⚡' },
+  veco:          { label: 'VECO',      color: '#22c55e', icon: '⚡' },
+  dlpc:          { label: 'DLPC',      color: '#3b82f6', icon: '⚡' },
+  'outage.report': { label: 'Outage.Report', color: '#ef4444', icon: '📡' },
+};
+
+function sourceMeta(source) {
+  return SOURCE_META[source] || SOURCE_META.crowdsourced;
+}
+
 // ─── RENDER ─────────────────────────────────────────────────────────────────
 function renderOutageCard(o) {
   const location = [o.barangay, o.city, o.province].filter(Boolean).join(', ') || `${o.lat.toFixed(4)}, ${o.lng.toFixed(4)}`;
+  const src = sourceMeta(o.source);
   const div = document.createElement('div');
   div.className = `outage-card ${o.type}`;
   div.dataset.id = o.id;
@@ -136,7 +150,10 @@ function renderOutageCard(o) {
       <div class="card-location">${escHtml(location)}</div>
       <span class="card-badge badge-${o.type}">${o.type}</span>
     </div>
-    <div class="card-region">${escHtml(o.region)}</div>
+    <div class="card-region-row">
+      <span class="card-region">${escHtml(o.region)}</span>
+      <span class="card-source" style="color:${src.color}">${src.icon} ${escHtml(src.label)}</span>
+    </div>
     ${o.description ? `<div class="card-desc">${escHtml(o.description)}</div>` : ''}
     <div class="card-footer">
       <span class="card-time">${timeAgo(o.reported_at)}</span>
@@ -243,10 +260,16 @@ function showDetailPanel(o) {
   const location = [o.barangay, o.city, o.province].filter(Boolean).join(', ') || `${o.lat.toFixed(4)}, ${o.lng.toFixed(4)}`;
   const voted = state.votedIds.has(o.id);
 
+  const src = sourceMeta(o.source);
   content.innerHTML = `
-    <span class="detail-type-badge ${o.type === 'planned' ? 'badge-planned' : 'badge-unplanned'}">
-      ${o.type === 'planned' ? '📅 Planned' : '⚡ Unplanned'}
-    </span>
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+      <span class="detail-type-badge ${o.type === 'planned' ? 'badge-planned' : 'badge-unplanned'}">
+        ${o.type === 'planned' ? '📅 Planned' : '⚡ Unplanned'}
+      </span>
+      <span class="detail-type-badge" style="background:rgba(0,0,0,0.3);color:${src.color};border:1px solid ${src.color}40">
+        ${src.icon} ${escHtml(src.label)}
+      </span>
+    </div>
     <div class="detail-location">${escHtml(location)}</div>
     <div class="detail-region">${escHtml(o.region)}</div>
     ${o.description ? `<div class="detail-desc">"${escHtml(o.description)}"</div>` : ''}
@@ -254,6 +277,8 @@ function showDetailPanel(o) {
       <div><strong>Reported:</strong> ${formatDateTime(o.reported_at)}</div>
       <div><strong>Status:</strong> ${timeLeft(o.expires_at)}</div>
       <div><strong>Coordinates:</strong> ${o.lat.toFixed(5)}, ${o.lng.toFixed(5)}</div>
+      ${o.source_url ? `<div><strong>Source:</strong> <a href="${escHtml(o.source_url)}" target="_blank" rel="noopener" style="color:#3b82f6">${escHtml(src.label)}</a></div>` : ''}
+      ${o.affected_areas ? `<div><strong>Areas:</strong> ${escHtml(o.affected_areas)}</div>` : ''}
     </div>
     <div class="upvote-section">
       <button class="upvote-btn ${voted ? 'voted' : ''}" id="upvote-btn" data-id="${o.id}" ${voted ? 'disabled' : ''}>

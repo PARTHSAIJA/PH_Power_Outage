@@ -187,6 +187,18 @@ app.post('/api/outages/:id/upvote', voteLimiter, async (req, res) => {
   res.json({ success: true, upvotes: Number(updatedResult.rows[0].upvotes) });
 });
 
+// POST /api/scrape — manually trigger a scraper run (for testing / admin)
+app.post('/api/scrape', async (req, res) => {
+  try {
+    const { runScrapers } = require('../scrapers/index');
+    const count = await runScrapers();
+    res.json({ success: true, itemsProcessed: count });
+  } catch (err) {
+    console.error('[/api/scrape]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/weather — PAGASA proxy
 app.get('/api/weather', async (req, res) => {
   try {
